@@ -1,0 +1,14 @@
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Meta API
+META_ACCESS_TOKEN=your-meta-access-token
+META_WABA_ID=your-whatsapp-business-account-id
+META_PHONE_NUMBER_ID=your-phone-number-id
+META_APP_SECRET=your-app-secret
+META_VERIFY_TOKEN=your-webhook-verify-token
+
+# Inngest
+INNGEST_EVENT_KEY=your-inngest-event-key
+INNGEST_SIGNING_KEY=your-inngest-signing-key

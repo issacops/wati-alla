@@ -33,7 +33,7 @@ export async function GET() {
         const data = await response.json()
         const templates = data.data
 
-        const results = []
+        const results: string[] = []
 
         for (const t of templates) {
             // Upsert into Supabase

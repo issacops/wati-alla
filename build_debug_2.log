@@ -1,0 +1,27 @@
+
+> mvp-daddy-connect@0.1.0 build
+> next build
+
+▲ Next.js 16.1.1 (Turbopack)
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 7.5s
+  Running TypeScript ...
+Failed to compile.
+
+./app/api/templates/create/route.ts:103:69
+Type error: No overload matches this call.
+  Overload 1 of 2, '(values: never, options?: { count?: "exact" | "planned" | "estimated" | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "templates", never, "POST">', gave the following error.
+    Argument of type '{ meta_template_id: any; name: any; status: any; category: any; language: any; components: ({ type: string; format: string; text: string; } | { type: string; format: string; } | { type: string; text: any; } | { ...; })[]; last_synced_at: string; }' is not assignable to parameter of type 'never'.
+  Overload 2 of 2, '(values: never[], options?: { count?: "exact" | "planned" | "estimated" | undefined; defaultToNull?: boolean | undefined; } | undefined): PostgrestFilterBuilder<{ PostgrestVersion: "12"; }, never, never, null, "templates", never, "POST">', gave the following error.
+    Object literal may only specify known properties, and 'meta_template_id' does not exist in type 'never[]'.
+
+[0m [90m 101 |[39m
+ [90m 102 |[39m         [90m// Insert into DB as PENDING (Meta usually takes time to approve but gives an ID immediately)[39m
+[31m[1m>[22m[39m[90m 103 |[39m         [36mconst[39m { error[33m:[39m dbError } [33m=[39m [36mawait[39m supabase[33m.[39m[36mfrom[39m([32m'templates'[39m)[33m.[39minsert({
+ [90m     |[39m                                                                     [31m[1m^[22m[39m
+ [90m 104 |[39m             meta_template_id[33m:[39m metaData[33m.[39mid[33m,[39m
+ [90m 105 |[39m             name[33m:[39m name[33m,[39m
+ [90m 106 |[39m             status[33m:[39m metaData[33m.[39mstatus [33m||[39m [32m'PENDING'[39m[33m,[39m[0m
+Next.js build worker exited with code: 1 and signal: null

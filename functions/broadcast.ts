@@ -68,7 +68,7 @@ export const sendBroadcastCampaign = inngest.createFunction(
         // Simplified: Just body text variable replacement.
 
         const chunkSize = 50
-        const chunks = []
+        const chunks: any[][] = []
         for (let i = 0; i < contacts.length; i += chunkSize) {
             chunks.push(contacts.slice(i, i + chunkSize))
         }

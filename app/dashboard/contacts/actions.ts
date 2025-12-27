@@ -28,7 +28,7 @@ export async function importContacts(data: any[], mapping: any) {
             })
         }
 
-        const tags = []
+        const tags: string[] = []
         if (tag && row[tag]) {
             // Assume comma separated or single tag? Prompt implies "Tags (Text array)".
             // Simple logic: split by comma if string

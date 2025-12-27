@@ -20,7 +20,7 @@ export async function POST(request: Request) {
         const { name, bodyText, headerType, buttons, category, language = 'en_US' } = body
 
         // Validate category constraints
-        const components = []
+        const components: any[] = []
 
         // Header Structure
         if (headerType === 'TEXT') {
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
         // Constraint: Marketing MUST have Opt-Out
         // However, Meta API might enforce this via the "marketing_opt_out" button or similar.
         // For now we trust the payload construction logic or the user prompt requirement implementation in UI.
-        // The prompt says: "If category is MARKETING, force the user to include an Opt-Out button" -> Logic should be likely in UI or enforced here.
+        // The prompt says: "If category is MARKETING, force the user to include an Opt-Out button ('Stop Promotions')" -> Logic should be likely in UI or enforced here.
         // I'll add enforcement here as fallback.
 
         if (category === 'MARKETING') {

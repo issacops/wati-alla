@@ -2,11 +2,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
 
-// Service role for updates
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// NOTE: Moved client initialization inside handler to separate concern and prevent build time crash if envs missing.
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
@@ -22,6 +18,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+    // Lazy initialize inside handler
+    const supabaseAdmin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
     try {
         const body = await request.json()
 
@@ -55,13 +57,6 @@ export async function POST(request: Request) {
 
                             if (text && (text === 'stop' || text === 'unsubscribe' || text === 'remove' || text === 'opt out')) {
                                 // Update contact
-                                // Meta usually sends phone without +. Our DB might have +. logic needs to handle.
-                                // We stored cleaned number with +.
-                                // Incoming usually: 15550239272
-
-                                // Try exact match or with +
-                                // Or normalize 'from'.
-
                                 const phoneWithPlus = '+' + from
 
                                 await supabaseAdmin
@@ -70,7 +65,6 @@ export async function POST(request: Request) {
                                     .eq('phone', phoneWithPlus)
 
                                 // Reply (Optional - Meta charges for this if not within 24h window of user init)
-                                // Using the same fetch logic as broadcast but simpler.
                                 await fetch(`https://graph.facebook.com/v21.0/${process.env.META_PHONE_NUMBER_ID}/messages`, {
                                     method: 'POST',
                                     headers: {

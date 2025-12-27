@@ -1,20 +1,18 @@
 
 import { inngest } from "@/lib/inngest/client"
-import { createClient } from "@/lib/supabase/client" // Using client here but might need server utils if running in node env? Inngest functions run in API route which is node/edge. Supabase SSR recommended.
-// Actually standard supabase-js client works if we use SERVICE_ROLE key for background jobs.
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-
-// Need a service role client to bypass RLS in background jobs
-const supabaseAdmin = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 export const sendBroadcastCampaign = inngest.createFunction(
     { id: "send-broadcast-campaign" },
     { event: "broadcast/start" },
     async ({ event, step }) => {
         const { campaignId } = event.data
+
+        // Lazy initialize client to avoid build-time crash if env vars missing
+        const supabaseAdmin = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        )
 
         // Step 1: Fetch Campaign & Template
         const { campaign, template } = await step.run("fetch-campaign-data", async () => {
@@ -45,9 +43,7 @@ export const sendBroadcastCampaign = inngest.createFunction(
                 .eq('id', campaignId)
         })
 
-        // Step 3: Fetch Audience (Chunking logic ideally done via cursor but here simple fetch all then chunk in memory for MVP, or better, step logic)
-        // For MVP validation, fetch all contacts (assuming < 10k)
-        // Ideally we filter by segments.
+        // Step 3: Fetch Audience
         const contacts = await step.run("fetch-audience", async () => {
             const { data } = await supabaseAdmin
                 .from('contacts')
@@ -64,9 +60,9 @@ export const sendBroadcastCampaign = inngest.createFunction(
         }
 
         // Step 4: Chunk and Send
-        const content = template.components // We need to parse this to replace variables. 
-        // Simplified: Just body text variable replacement.
+        const content = template.components
 
+        // Explicit type for chunks to avoid never[] error
         const chunkSize = 50
         const chunks: any[][] = []
         for (let i = 0; i < contacts.length; i += chunkSize) {
@@ -81,7 +77,7 @@ export const sendBroadcastCampaign = inngest.createFunction(
                     // 1. Prepare Payload
                     const body = {
                         messaging_product: "whatsapp",
-                        to: contact.phone.replace('+', ''), // Meta requires no plus usually? actually yes, no plus.
+                        to: contact.phone.replace('+', ''),
                         type: "template",
                         template: {
                             name: template.name,
@@ -90,7 +86,7 @@ export const sendBroadcastCampaign = inngest.createFunction(
                                 {
                                     type: "body",
                                     parameters: [
-                                        { type: "text", text: contact.name || "Customer" } // {{1}} mapped to name
+                                        { type: "text", text: contact.name || "Customer" }
                                     ]
                                 }
                             ]

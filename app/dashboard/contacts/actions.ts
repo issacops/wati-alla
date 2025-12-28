@@ -78,3 +78,143 @@ export async function importContacts(data: any[], mapping: any) {
     revalidatePath('/dashboard/contacts')
     return { count: totalInserted }
 }
+
+export async function fetchContacts(filters?: {
+    search?: string
+    tags?: string[]
+    page?: number
+    perPage?: number
+}) {
+    const supabase = createClient()
+    const page = filters?.page || 1
+    const perPage = filters?.perPage || 50
+    const from = (page - 1) * perPage
+    const to = from + perPage - 1
+
+    let query = supabase
+        .from('contacts')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to)
+
+    if (filters?.search) {
+        query = query.or(`name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`)
+    }
+
+    if (filters?.tags && filters.tags.length > 0) {
+        query = query.overlaps('tags', filters.tags)
+    }
+
+    const { data, error, count } = await query
+
+    if (error) {
+        console.error('Fetch contacts error:', error)
+        return { contacts: [], total: 0 }
+    }
+
+    return { contacts: data || [], total: count || 0 }
+}
+
+export async function updateContact(id: string, updates: {
+    name?: string
+    tags?: string[]
+    attributes?: any
+}) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        throw new Error("Unauthorized")
+    }
+
+    const { error } = await supabase
+        .from('contacts')
+        .update({
+            name: updates.name,
+            tags: updates.tags,
+            attributes: updates.attributes,
+        })
+        .eq('id', id)
+
+    if (error) {
+        throw new Error("Failed to update contact")
+    }
+
+    revalidatePath('/dashboard/contacts')
+}
+
+export async function deleteContacts(ids: string[]) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        throw new Error("Unauthorized")
+    }
+
+    const { error } = await supabase
+        .from('contacts')
+        .delete()
+        .in('id', ids)
+
+    if (error) {
+        throw new Error("Failed to delete contacts")
+    }
+
+    revalidatePath('/dashboard/contacts')
+}
+
+export async function toggleUnsubscribe(id: string, unsubscribe: boolean) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        throw new Error("Unauthorized")
+    }
+
+    const { error } = await supabase
+        .from('contacts')
+        .update({ is_unsubscribed: unsubscribe })
+        .eq('id', id)
+
+    if (error) {
+        throw new Error("Failed to update subscription status")
+    }
+
+    revalidatePath('/dashboard/contacts')
+}
+
+export async function getContactById(id: string) {
+    const supabase = createClient()
+
+    const { data: contact, error } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+    if (error) {
+        throw new Error("Contact not found")
+    }
+
+    return contact
+}
+
+export async function getAllTags() {
+    const supabase = createClient()
+
+    const { data: contacts } = await supabase
+        .from('contacts')
+        .select('tags')
+        .not('tags', 'is', null)
+
+    if (!contacts) return []
+
+    const tagsSet = new Set<string>()
+    contacts.forEach(contact => {
+        if (contact.tags && Array.isArray(contact.tags)) {
+            contact.tags.forEach((tag: string) => tagsSet.add(tag))
+        }
+    })
+
+    return Array.from(tagsSet).sort()
+}

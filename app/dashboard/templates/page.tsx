@@ -1,28 +1,62 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateTemplateForm } from "@/components/templates/create-template-form"
+import { TemplateTable } from "@/components/templates/template-table"
 import { Button } from "@/components/ui/button"
-import { RefreshCw, CheckCircle2, XCircle, Clock } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { RefreshCw, Filter } from "lucide-react"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { EmptyState } from "@/components/ui/empty-state"
+import { MessageSquare } from "lucide-react"
+import { fetchTemplates, syncTemplates } from "./actions"
+import { toast } from "sonner"
 
 export default function TemplatesPage() {
-    const [activeTab, setActiveTab] = useState("create")
-    // In real app, we fetch templates here. Mocking for UI readiness.
+    const [activeTab, setActiveTab] = useState("list")
     const [templates, setTemplates] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+    const [syncing, setSyncing] = useState(false)
+    const [statusFilter, setStatusFilter] = useState<string>("all")
 
-    const syncTemplates = async () => {
-        // Call Sync API
+    useEffect(() => {
+        loadTemplates()
+    }, [statusFilter])
+
+    async function loadTemplates() {
+        setLoading(true)
         try {
-            const res = await fetch('/api/templates/sync')
-            const data = await res.json()
-            alert(`Synced: ${data.count} templates`) // Simple alert for MVP
-            // setTemplates(data.templates) // if API returned full objects
-        } catch (e) {
-            console.error(e)
-            alert("Sync failed")
+            const filters: any = {}
+            if (statusFilter !== "all") {
+                filters.status = [statusFilter.toUpperCase()]
+            }
+
+            const data = await fetchTemplates(filters)
+            setTemplates(data)
+        } catch (error) {
+            toast.error("Failed to load templates")
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleSync = async () => {
+        setSyncing(true)
+        try {
+            const result = await syncTemplates()
+            toast.success(`Synced ${result.count} templates from Meta`)
+            loadTemplates()
+        } catch (error) {
+            toast.error("Sync failed")
+        } finally {
+            setSyncing(false)
         }
     }
 
@@ -33,30 +67,54 @@ export default function TemplatesPage() {
                     <h2 className="text-3xl font-bold tracking-tight">Message Templates</h2>
                     <p className="text-muted-foreground mt-1">Create and manage your WhatsApp templates.</p>
                 </div>
-                <Button variant="outline" onClick={syncTemplates}>
-                    <RefreshCw className="w-4 h-4 mr-2" />
+                <Button variant="outline" onClick={handleSync} disabled={syncing}>
+                    <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
                     Sync from Meta
                 </Button>
             </div>
 
-            <Tabs defaultValue="create" value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs defaultValue="list" value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="bg-white border">
                     <TabsTrigger value="list">All Templates</TabsTrigger>
                     <TabsTrigger value="create">Create New</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="list" className="mt-6">
-                    <div className="border rounded-lg bg-white p-12 text-center text-gray-500">
-                        <div className="max-w-md mx-auto">
-                            <h3 className="text-lg font-medium text-black">No templates loaded</h3>
-                            <p className="mt-2 text-sm">Sync with Meta or create a new template to get started.</p>
-                            <Button onClick={() => setActiveTab('create')} className="mt-4">Create Template</Button>
+                <TabsContent value="list" className="mt-6 space-y-4">
+                    <div className="flex items-center gap-4">
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger className="w-[180px]">
+                                <Filter className="w-4 h-4 mr-2" />
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="approved">Approved</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <div className="text-sm text-muted-foreground">
+                            {templates.length} template(s)
                         </div>
-                        {/* 
-                Here we would map through 'templates' and render a Table.
-                Skipping full table implementation for brevity as per MVP prompt focus on Create Flow.
-            */}
                     </div>
+
+                    {loading ? (
+                        <div className="text-center py-12">
+                            <p className="text-muted-foreground">Loading templates...</p>
+                        </div>
+                    ) : templates.length === 0 ? (
+                        <EmptyState
+                            icon={MessageSquare}
+                            title="No templates found"
+                            description="Sync with Meta or create a new template to get started"
+                            action={{
+                                label: "Create Template",
+                                onClick: () => setActiveTab("create"),
+                            }}
+                        />
+                    ) : (
+                        <TemplateTable templates={templates} onRefresh={loadTemplates} />
+                    )}
                 </TabsContent>
 
                 <TabsContent value="create" className="mt-6">

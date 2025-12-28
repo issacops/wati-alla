@@ -1,12 +1,14 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Send, CheckCheck } from "lucide-react"
+import { Users, Send, CheckCheck, TrendingUp, TrendingDown } from "lucide-react"
+import Link from "next/link"
+import { calculateReadRate, getGrowthPercentage } from "@/lib/utils/analytics"
 
 export default async function DashboardPage() {
     const supabase = createClient()
 
-    // Parallel fetch for stats (Mock logic for MVP queries mostly)
+    // Parallel fetch for stats
     // 1. Total Contacts
     const { count: totalContacts } = await supabase
         .from('contacts')
@@ -14,7 +16,6 @@ export default async function DashboardPage() {
         .eq('is_unsubscribed', false)
 
     // 2. Messages Sent (This month)
-    // Simplified: Total success from campaigns.
     const { data: campaigns } = await supabase
         .from('campaigns')
         .select('success_count, total_audience, created_at, status, name, id')
@@ -23,9 +24,12 @@ export default async function DashboardPage() {
 
     const totalSent = campaigns?.reduce((acc, curr) => acc + (curr.success_count || 0), 0) || 0
 
-    // 3. Read Rate (Mock calculation or from logs)
-    // We don't have aggregated logs easily here without complex query. Mocking/using placeholder.
-    const averageReadRate = "82%"
+    // 3. Read Rate (Real calculation from campaign_logs)
+    const readRate = await calculateReadRate()
+
+    // 4. Growth calculations
+    const contactGrowth = await getGrowthPercentage('contacts')
+    const messageGrowth = await getGrowthPercentage('messages')
 
     return (
         <div className="space-y-8">
@@ -42,7 +46,20 @@ export default async function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{totalContacts || 0}</div>
-                        <p className="text-xs text-muted-foreground">+20.1% from last month</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                            {contactGrowth >= 0 ? (
+                                <>
+                                    <TrendingUp className="h-3 w-3 text-green-500" />
+                                    <span className="text-green-600">+{contactGrowth}%</span>
+                                </>
+                            ) : (
+                                <>
+                                    <TrendingDown className="h-3 w-3 text-red-500" />
+                                    <span className="text-red-600">{contactGrowth}%</span>
+                                </>
+                            )}
+                            <span>from last month</span>
+                        </p>
                     </CardContent>
                 </Card>
 
@@ -53,7 +70,20 @@ export default async function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{totalSent}</div>
-                        <p className="text-xs text-muted-foreground">This month</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                            {messageGrowth >= 0 ? (
+                                <>
+                                    <TrendingUp className="h-3 w-3 text-green-500" />
+                                    <span className="text-green-600">+{messageGrowth}%</span>
+                                </>
+                            ) : (
+                                <>
+                                    <TrendingDown className="h-3 w-3 text-red-500" />
+                                    <span className="text-red-600">{messageGrowth}%</span>
+                                </>
+                            )}
+                            <span>from last month</span>
+                        </p>
                     </CardContent>
                 </Card>
 
@@ -63,16 +93,23 @@ export default async function DashboardPage() {
                         <CheckCheck className="h-4 w-4 text-teal-500" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{averageReadRate}</div>
-                        <p className="text-xs text-muted-foreground">+4% from last week</p>
+                        <div className="text-2xl font-bold">{readRate}%</div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Across all campaigns
+                        </p>
                     </CardContent>
                 </Card>
             </div>
 
             <div className="grid gap-4 md:grid-cols-1">
                 <Card>
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle>Recent Campaigns</CardTitle>
+                        <Link href="/dashboard/campaigns">
+                            <button className="text-sm text-primary hover:underline">
+                                View all
+                            </button>
+                        </Link>
                     </CardHeader>
                     <CardContent>
                         <div className="relative w-full overflow-auto">
@@ -88,7 +125,11 @@ export default async function DashboardPage() {
                                 <tbody className="[&_tr:last-child]:border-0">
                                     {campaigns?.map((c) => (
                                         <tr key={c.id} className="border-b transition-colors hover:bg-muted/50">
-                                            <td className="p-4 align-middle font-medium">{c.name}</td>
+                                            <td className="p-4 align-middle font-medium">
+                                                <Link href={`/dashboard/campaigns/${c.id}`} className="hover:underline">
+                                                    {c.name}
+                                                </Link>
+                                            </td>
                                             <td className="p-4 align-middle">
                                                 <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
                                             ${c.status === 'COMPLETED' ? 'border-transparent bg-teal-500 text-white shadow hover:bg-teal-600' :

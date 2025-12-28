@@ -5,6 +5,8 @@ import { Users, Send, CheckCheck, TrendingUp, TrendingDown } from "lucide-react"
 import Link from "next/link"
 import { calculateReadRate, getGrowthPercentage } from "@/lib/utils/analytics"
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardPage() {
     const supabase = createClient()
 
